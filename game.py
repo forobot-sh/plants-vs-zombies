@@ -1,3 +1,5 @@
+from random import randint
+
 import pygame
 
 SCREEN_WIDTH = 800
@@ -5,6 +7,7 @@ SCREEN_HEIGHT = 560
 
 
 class MainGame:
+    zombie_list = []
     bullets = []
     maps_list = []
     plant_list = []
@@ -14,6 +17,7 @@ class MainGame:
     score = 0
     level = 1
     screen = None
+    clock = pygame.time.Clock()
 
     def __init__(self):
         # 设定窗口的大小
@@ -22,8 +26,10 @@ class MainGame:
         # 显示帮助文字
         self.init_points_list()
         self.init_maps_list()
+        self.produce_zombie()
 
         while True:
+            MainGame.clock.tick(111)
             self.handle_events()
             MainGame.screen.fill((255, 255, 255))
             self.load_maps_list()
@@ -31,6 +37,7 @@ class MainGame:
             # 每次都要重新绘制
             self.load_help_text()
             self.load_bullets()
+            self.load_zombie_list()
             pygame.display.update()
 
     # font_style 需要通过元组(name, size, color)的形式传入
@@ -129,6 +136,25 @@ class MainGame:
             bullet.move()
             bullet.display()
 
+    @staticmethod
+    def produce_zombie():
+        for i in range(1,        7):
+            left = randint(1, 5) * 200 + 800
+            top = i * 80
+            zombie = Zombie(left, top)
+            MainGame.zombie_list.append(zombie)
+
+    @staticmethod
+    def load_zombie_list():
+        for zombie in MainGame.zombie_list:
+            if isinstance(zombie, Zombie):
+                if zombie.live:
+                    zombie.display()
+                    zombie.move()
+                    zombie.hit_plant()
+                else:
+                    MainGame.zombie_list.remove(zombie)
+
 
 class Map:
     def __init__(self, left, top):
@@ -150,6 +176,7 @@ class Plant(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.live = True
+        self.hp = 200
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
@@ -164,7 +191,7 @@ class SunFlower(Plant):
         if self.live:
             self.time_counter += 1
             if self.time_counter == 25:
-                MainGame.money += 5
+                MainGame.money += 555
                 self.time_counter = 0
 
 
@@ -203,6 +230,48 @@ class PeaShooterBullet(pygame.sprite.Sprite):
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
+
+
+class Zombie(pygame.sprite.Sprite):
+    # Surface # Rect
+    def __init__(self, left, top):
+        super(Zombie, self).__init__()
+        self.live = True
+        self.image = pygame.image.load('imgs/zombie.png')
+        self.rect = self.image.get_rect()
+        self.rect.left = left
+        self.rect.top = top
+        self.can_move = True
+
+        self.damage = 20
+        self.hp = 1000
+        self.speed = 1
+
+    def move(self):
+        if self.can_move:
+            self.rect = self.rect.move(self.speed * -1, 0)
+
+    def hit_plant(self):
+        plant: object
+        for plant in MainGame.plant_list:
+            if pygame.sprite.collide_rect(self, plant):
+                self.can_move = False
+
+                self.eat_plant(plant)
+
+    def display(self):
+        MainGame.screen.blit(self.image, self.rect)
+
+    def eat_plant(self, plant):
+        plant.hp -= self.damage
+        print(plant.hp)
+        if plant.hp <= 0:
+            self.can_move = True
+            left = plant.rect.left // 80
+            top = plant.rect.top // 80
+            m = MainGame.maps_list[top - 1][left]
+            m.can_grow = True
+            MainGame.plant_list.remove(plant)
 
 
 if __name__ == '__main__':
