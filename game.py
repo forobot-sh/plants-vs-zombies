@@ -1,4 +1,8 @@
+import sys
+from random import randint
+
 import pygame
+
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 560
@@ -9,7 +13,8 @@ class MainGame:
     maps_list = []
     plant_list = []
     points_list = []
-    money = 200
+    zombie_list = []
+    sunshine = 50
     remnant_score = 100
     score = 0
     level = 1
@@ -21,12 +26,15 @@ class MainGame:
         MainGame.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         # 显示帮助文字
         self.init_points_list()
+        self.produce_zombie()
         self.init_maps_list()
 
         while True:
             self.handle_events()
             MainGame.screen.fill((255, 255, 255))
             self.load_maps_list()
+            self.load_zombie()
+
             self.load_plant_list()
             # 每次都要重新绘制
             self.load_help_text()
@@ -50,8 +58,8 @@ class MainGame:
         text = self.text_render("1.左键种植向日葵，2.右键种植豌豆射手", (name, size, color))
         MainGame.screen.blit(text, (5, 0))
         text = self.text_render(
-            "当前关数：{}， 当前得分：{}，距离下关还差：{}，金钱：{}".format(
-                MainGame.level, MainGame.score, MainGame.remnant_score, MainGame.money
+            "当前关数：{}， 当前得分：{}，距离下关还差：{}，阳光：{}".format(
+                MainGame.level, MainGame.score, MainGame.remnant_score, MainGame.sunshine
             ), (name, size, color)
         )
         MainGame.screen.blit(text, (5, 40))
@@ -111,11 +119,13 @@ class MainGame:
 
     @staticmethod
     def load_plant_list():
+
+
         for plant in MainGame.plant_list:
             # 如果植物活着
             if plant.live:
                 if isinstance(plant, SunFlower):
-                    plant.produce_money()
+                    plant.produce_sunshine()
                 elif isinstance(plant, PeaShooter):
                     # 发射子弹
                     plant.shot()
@@ -129,6 +139,22 @@ class MainGame:
             bullet.move()
             bullet.display()
 
+    @staticmethod
+    def produce_zombie():
+        for i in range(1, 7):
+            distance = randint(1, 4) * 200
+            zombie = Zombie(800 + distance, i * 80)
+            MainGame.zombie_list.append(zombie)
+
+    @staticmethod
+    def load_zombie():
+        for zombie in MainGame.zombie_list:
+            if zombie.live:
+                zombie.display()
+                zombie.move()
+                zombie.hit_plant()
+            else:
+                MainGame.zombie_list.remove(zombie)
 
 class Map:
     def __init__(self, left, top):
@@ -150,6 +176,7 @@ class Plant(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.live = True
+        self.hp = 200
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
@@ -160,14 +187,12 @@ class SunFlower(Plant):
         super(SunFlower, self).__init__(left, top, 'imgs/sun-flower.png')
         self.time_counter = 0
 
-    def produce_money(self):
+    def produce_sunshine(self):
         if self.live:
             self.time_counter += 1
             if self.time_counter == 25:
-                MainGame.money += 5
+                MainGame.sunshine += 50
                 self.time_counter = 0
-
-
 class PeaShooter(Plant):
     def __init__(self, left, top):
         super(PeaShooter, self).__init__(left, top, 'imgs/pea-shooter.png')
@@ -201,8 +226,47 @@ class PeaShooterBullet(pygame.sprite.Sprite):
             MainGame.bullets.remove(self)
             pass
 
+    def hit_zombie(self):
+        pass
+
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
+
+
+class Zombie(pygame.sprite.Sprite):
+    def __init__(self, left, top):
+        super(Zombie, self).__init__()
+        self.image = pygame.image.load('./imgs/zombie.png')
+        self.rect = self.image.get_rect()
+        self.rect.left = left
+        self.rect.top = top
+        self.hp = 270
+        self.speed = 1
+        self.live = True
+        self.can_move = True
+        self.damage = 2
+    def move(self):
+        if self.live:
+            if self.can_move:
+                self.rect = self.rect.move(self.speed * -1, 0)
+                if self.rect.right < 0:
+                    sys.exit()
+
+    def hit_plant(self):
+        for plant in MainGame.plant_list:
+            if pygame.sprite.collide_rect(self, plant):
+                self.can_move = False
+                self.eat_plant(plant)
+
+    def eat_plant(self, plant):
+        plant.hp -= self.damage
+        if plant.hp <= 0:
+            MainGame.plant_list.remove(plant)
+            self.can_move = True
+
+    def display(self):
+        MainGame.screen.blit(self.image, self.rect)
+
 
 
 if __name__ == '__main__':
