@@ -1,3 +1,6 @@
+import sys
+from random import randint
+
 import pygame
 
 SCREEN_WIDTH = 800
@@ -5,6 +8,7 @@ SCREEN_HEIGHT = 560
 
 
 class MainGame:
+    zombie_list = []
     bullets = []
     maps_list = []
     plant_list = []
@@ -22,6 +26,7 @@ class MainGame:
         # 显示帮助文字
         self.init_points_list()
         self.init_maps_list()
+        self.produce_zombie()
 
         while True:
             self.handle_events()
@@ -31,6 +36,7 @@ class MainGame:
             # 每次都要重新绘制
             self.load_help_text()
             self.load_bullets()
+            self.load_zombie()
             pygame.display.update()
 
     # font_style 需要通过元组(name, size, color)的形式传入
@@ -129,6 +135,23 @@ class MainGame:
             bullet.move()
             bullet.display()
 
+    @staticmethod
+    def produce_zombie():
+        for i in range(1, 7):
+            distance = randint(1, 4) * 200
+            zombie = Zombie(800 + distance, i * 80)
+            MainGame.zombie_list.append(zombie)
+
+    @staticmethod
+    def load_zombie():
+        for zombie in MainGame.zombie_list:
+            if zombie.live:
+                zombie.display()
+                zombie.move()
+                zombie.hit_plant()
+            else:
+                MainGame.zombie_list.remove(zombie)
+
 
 class Map:
     def __init__(self, left, top):
@@ -150,6 +173,7 @@ class Plant(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.live = True
+        self.hp = 300
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
@@ -200,6 +224,42 @@ class PeaShooterBullet(pygame.sprite.Sprite):
             # 子弹移出列表
             MainGame.bullets.remove(self)
             pass
+
+    def display(self):
+        MainGame.screen.blit(self.image, self.rect)
+
+
+class Zombie(pygame.sprite.Sprite):
+    def __init__(self, left, top):
+        super(Zombie, self).__init__()
+        self.image = pygame.image.load('./imgs/zombie.png')
+        self.rect = self.image.get_rect()
+        self.rect.left = left
+        self.rect.top = top
+        self.hp = 500
+        self.speed = 1
+        self.can_move = True
+        self.damage = 30
+        self.live = True
+
+    def move(self):
+        if self.live:
+            if self.can_move:
+                self.rect = self.rect.move(self.speed * -1, 0)
+                if self.rect.right < 0:
+                    sys.exit()
+
+    def hit_plant(self):
+        for plant in MainGame.plant_list:
+            if pygame.sprite.collide_rect(self, plant):
+                self.can_move = False
+                self.eat_plant(plant)
+
+    def eat_plant(self, plant):
+        plant.hp = self.damage
+        if plant.hp <= 0:
+            MainGame.plant_list.remove(plant)
+            self.can_move = True
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
