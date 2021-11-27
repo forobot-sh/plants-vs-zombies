@@ -256,9 +256,13 @@ class Zombie(pygame.sprite.Sprite):
                 self.eat_plant(plant)
 
     def eat_plant(self, plant):
-        plant.hp = self.damage
+        plant.hp -= self.damage
         if plant.hp <= 0:
             MainGame.plant_list.remove(plant)
+            left = plant.rect.left // 80
+            top = plant.rect.top // 80 - 1
+            m: Map = MainGame.maps_list[top][left]
+            m.can_grow = True
             self.can_move = True
 
     def display(self):
