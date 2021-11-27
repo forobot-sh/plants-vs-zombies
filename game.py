@@ -133,8 +133,12 @@ class MainGame:
     @staticmethod
     def load_bullets():
         for bullet in MainGame.bullets:
-            bullet.move()
-            bullet.display()
+            if bullet.live:
+                bullet.display()
+                bullet.move()
+                bullet.hit_zombie()
+            else:
+                MainGame.bullets.remove(bullet)
 
     @staticmethod
     def produce_zombie():
@@ -219,6 +223,8 @@ class PeaShooterBullet(pygame.sprite.Sprite):
         self.rect.left = pea_shooter.rect.left + 40
         self.rect.top = pea_shooter.rect.top + 20
         self.speed = 10
+        self.damage = 100
+        self.live = True
 
     def move(self):
         if self.rect.left < SCREEN_WIDTH:
@@ -227,6 +233,19 @@ class PeaShooterBullet(pygame.sprite.Sprite):
             # 子弹移出列表
             MainGame.bullets.remove(self)
             pass
+
+    def hit_zombie(self):
+        for zombie in MainGame.zombie_list:
+            # 判断是否碰到僵尸
+            if pygame.sprite.collide_rect(self, zombie):
+                # 减少僵尸的血量
+                zombie.hp -= self.damage
+                # 把子弹删除掉
+                self.live = False
+                if zombie.hp <= 0:
+                    # 把僵尸的状态设置为死亡，等待 load_zombie_list 中删除僵尸
+                    zombie.live = False
+                    pass
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
