@@ -18,6 +18,8 @@ class MainGame:
     level = 1
     screen = None
     clock = pygame.time.Clock()
+    zombie_counter = 0
+    zombie_distance = 100
 
     def __init__(self):
         # 设定窗口的大小
@@ -38,6 +40,10 @@ class MainGame:
             self.load_help_text()
             self.load_bullets()
             self.load_zombie_list()
+            MainGame.zombie_counter += 1
+            if MainGame.zombie_counter == MainGame.zombie_distance:
+                self.produce_zombie()
+                MainGame.zombie_counter = 0
             pygame.display.update()
 
     # font_style 需要通过元组(name, size, color)的形式传入
@@ -180,6 +186,7 @@ class Plant(pygame.sprite.Sprite):
         self.rect.left = left
         self.rect.top = top
         self.live = True
+        self.price = 50
         self.hp = 200
 
     def display(self):
@@ -206,12 +213,19 @@ class PeaShooter(Plant):
 
     def shot(self):
         self.time_counter += 1
-        if self.time_counter == 25:
-            # 生成子弹
-            bullet = PeaShooterBullet(self)
-            # 加入到列表中
-            MainGame.bullets.append(bullet)
-            self.time_counter = 0
+        # 遍历僵尸列表查看该行是否有僵尸存在
+        should_shot = False
+        for zombie in MainGame.zombie_list:
+            if zombie.rect.top == self.rect.top and self.rect.left < zombie.rect.left < 800:
+                should_shot = True
+
+        if self.live and should_shot:
+            if self.time_counter == 25:
+                # 生成子弹
+                bullet = PeaShooterBullet(self)
+                # 加入到列表中
+                MainGame.bullets.append(bullet)
+                self.time_counter = 0
 
 
 # 定义豌豆射手子弹
@@ -230,9 +244,7 @@ class PeaShooterBullet(pygame.sprite.Sprite):
         if self.rect.left < SCREEN_WIDTH:
             self.rect = self.rect.move(self.speed, 0)
         else:
-            # 子弹移出列表
-            MainGame.bullets.remove(self)
-            pass
+            self.live = False
 
     def hit_zombie(self):
         for zombie in MainGame.zombie_list:
@@ -245,7 +257,17 @@ class PeaShooterBullet(pygame.sprite.Sprite):
                 if zombie.hp <= 0:
                     # 把僵尸的状态设置为死亡，等待 load_zombie_list 中删除僵尸
                     zombie.live = False
-                    pass
+                    self.next_level()
+
+    @staticmethod
+    def next_level():
+        MainGame.score += 20
+        MainGame.remnant_score -= 20
+        for i in range(1, 100):
+            if MainGame.score == i * 100 and MainGame.remnant_score == 0:
+                MainGame.remnant_score = 100 * i
+                MainGame.level += 1
+                MainGame.zombie_distance -= 2
 
     def display(self):
         MainGame.screen.blit(self.image, self.rect)
@@ -293,7 +315,7 @@ class Zombie(pygame.sprite.Sprite):
             top = plant.rect.top // 80
             m = MainGame.maps_list[top - 1][left]
             m.can_grow = True
-            MainGame.plant_list.remove(plant)
+            plant.live = False
 
 
 if __name__ == '__main__':
